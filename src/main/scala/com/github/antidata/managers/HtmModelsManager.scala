@@ -7,6 +7,7 @@ object HtmModelsManager extends HtmModelsManager
 
 trait HtmModelsManager {
   protected[this] lazy val cache: LruMap[HtmModelId, HtmModel] = new LruMap[HtmModelId, HtmModel](AppConfiguration.values.getInt("app.cache.size"))
+
   def getModel(htmModelId: HtmModelId): Option[HtmModel] = cache.get(htmModelId)
   def addModel(htmModel: HtmModel): Option[String] = {
     cache.get(htmModel.id) match {
