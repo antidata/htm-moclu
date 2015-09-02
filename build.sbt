@@ -4,7 +4,7 @@ import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 val akkaVersion = "2.3.12"
 
 val project = Project(
-  id = "htm-model-cluster",
+  id = "htm-moclu",
   base = file("."),
   settings = Project.defaultSettings ++ SbtMultiJvm.multiJvmSettings ++ Seq(
     name := "htm-model-cluster",
