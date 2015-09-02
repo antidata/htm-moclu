@@ -1,7 +1,7 @@
 package com.github.antidata.bootstrap
 
 import akka.actor.{ActorSystem, Props}
-import com.github.antidata.HtmModelsClusterListener
+import com.github.antidata.actors.HtmModelsClusterListener
 import com.github.antidata.managers.HtmModelsManager
 import com.typesafe.config.ConfigFactory
 
