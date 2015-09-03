@@ -4,6 +4,8 @@ import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import com.github.antidata.events.{CreateHtmModel, HtmEventGetModel, HtmModelEvent}
+import com.github.antidata.managers.{HtmModelsManager, HtmModelFactory}
+import com.github.antidata.model.{HtmModelId, HtmModel}
 
 class HtmModelsClusterListener extends Actor with ActorLogging {
 
@@ -28,12 +30,31 @@ class HtmModelsClusterListener extends Actor with ActorLogging {
 
     case _: MemberEvent => // ignore
 
+    // TODO move this to separate actors
     case CreateHtmModel(id) =>
-
+      val htmModel = HtmModelFactory()
+      HtmModelsManager.addModel(HtmModel(HtmModelId(id), Nil, htmModel))
+      sender() ! s"$id added" // TODO Make case class to reply
 
     case HtmEventGetModel(hmi) =>
+      HtmModelsManager.getModel(hmi) match {
+        case Some(htmModel) =>
+          sender() ! htmModel.data // TODO Make case class to reply
+        case _ =>
+          log.info(s"$hmi not found")
+          sender() ! s"$hmi not found" // TODO Make case class to reply
+      }
 
     case HtmModelEvent(hmed) =>
+      HtmModelsManager.getModel(hmed.modelId) match {
+        case Some(htmModel) =>
+          log.info(s"Sending to publisher: ${hmed.timestamp},${hmed.value}")
+          htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
+          // TODO reply with prediction
+        case _ =>
+          sender() ! s"${hmed.modelId} not found" // TODO Make case class to reply
+          log.info(s"${hmed.modelId} not found")
+      }
 
     case m => println(s"received $m")
   }
