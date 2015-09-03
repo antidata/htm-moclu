@@ -1,13 +1,13 @@
 package com.github.antidata.bootstrap
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import com.github.antidata.actors.HtmModelsClusterListener
 import com.github.antidata.managers.HtmModelsManager
 import com.typesafe.config.ConfigFactory
 
 object Boot {
-  def startup(ports: Seq[String]): Unit = {
-    ports foreach { port =>
+  def startup(ports: Seq[String]) = {
+    ports map { port =>
       // Override the configuration of the port
       val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port).withFallback(ConfigFactory.load())
 
@@ -17,9 +17,9 @@ object Boot {
       system.actorOf(Props[HtmModelsClusterListener], name = "htmModelsClusterListener")
     }
   }
-
+  var systems: Seq[ActorRef] = null
   def main(args: Array[String]): Unit = {
     HtmModelsManager.init()
-    startup(Seq("2551", "2552", "0"))
+    systems = startup(Seq("2551", "2552", "0"))
   }
 }
