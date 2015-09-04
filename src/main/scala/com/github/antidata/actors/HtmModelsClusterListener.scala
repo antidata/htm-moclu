@@ -39,6 +39,7 @@ class HtmModelsClusterListener extends Actor with ActorLogging {
     case HtmEventGetModel(hmi) =>
       HtmModelsManager.getModel(hmi) match {
         case Some(htmModel) =>
+          log.debug(s"data ${htmModel.data}")
           sender() ! htmModel.data // TODO Make case class to reply
         case _ =>
           log.info(s"$hmi not found")
@@ -50,6 +51,7 @@ class HtmModelsClusterListener extends Actor with ActorLogging {
         case Some(htmModel) =>
           log.info(s"Sending to publisher: ${hmed.timestamp},${hmed.value}")
           htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
+
           // TODO reply with prediction
         case _ =>
           sender() ! s"${hmed.modelId} not found" // TODO Make case class to reply
