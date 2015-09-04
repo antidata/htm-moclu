@@ -17,6 +17,9 @@ trait HtmModelsManager {
         None
     }
   }
+  def updateModel(htmModel: HtmModel): Unit = {
+    cache.update(htmModel.id, htmModel)
+  }
   def init() {
     cache.maxSize
   }
