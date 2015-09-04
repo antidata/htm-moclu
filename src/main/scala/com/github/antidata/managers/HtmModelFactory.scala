@@ -58,7 +58,7 @@ trait HtmModelFactory {
   def getPublisher: Publisher = {
     Publisher
       .builder
-      .addHeader("timestamp,value")
+      .addHeader("timestamp,consumption")
       .addHeader("datetime,float")
       .addHeader("T, ")
       .build
