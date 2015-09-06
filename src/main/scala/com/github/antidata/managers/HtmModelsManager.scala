@@ -11,7 +11,9 @@ trait HtmModelsManager {
   def getModel(htmModelId: HtmModelId): Option[HtmModel] = cache.get(htmModelId)
   def addModel(htmModel: HtmModel): Option[String] = {
     cache.get(htmModel.id) match {
-      case Some(model) => Some(s"Model ${htmModel.id} is already in cache")
+      case Some(model) =>
+        Some(s"Model ${htmModel.id} is already in cache")
+
       case None =>
         cache += (htmModel.id -> htmModel)
         None
