@@ -1,5 +1,7 @@
 package com.github.antidata.managers
 
+import akka.actor.ActorRef
+import com.github.antidata.actors.messages.ModelPrediction
 import com.github.antidata.model.{HtmModelNetwork, HtmModel}
 import com.github.antidata.settings.NetworkParameters
 import org.numenta.nupic.Parameters
@@ -29,22 +31,6 @@ trait HtmModelFactory {
       .add(new TemporalMemory)
       .add(new SpatialPooler)
       .add(sensor)))
-
-    net.observe().subscribe(new Subscriber[Inference]() {
-      def onCompleted() {
-        System.out.println("Stream completed, see output: ")
-      }
-
-      def onError(e: Throwable) {
-        e.printStackTrace()
-      }
-
-      def onNext(i: Inference) {
-        //(i, "consumption")
-        val res = s"${i.getRecordNum}, ${i.getClassifierInput.get("consumption").get("inputValue")}, ${i.getAnomalyScore}"
-        println(res)
-      }
-    })
 
     net.start()
 
