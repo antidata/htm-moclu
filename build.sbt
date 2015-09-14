@@ -1,21 +1,23 @@
 import com.typesafe.sbt.SbtMultiJvm
 import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 
-val akkaVersion = "2.3.12"
+val akkaVersion = "2.4-M3"
 
 val project = Project(
   id = "htm-moclu",
   base = file("."),
   settings = Project.defaultSettings ++ SbtMultiJvm.multiJvmSettings ++ Seq(
     name := "htm-model-cluster",
-    version := "2.3.12",
-    scalaVersion := "2.11.4",
+    version := "0.1.8",
+    scalaVersion := "2.11.7",
     scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.6", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint"),
     javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6", "-Xlint:unchecked", "-Xlint:deprecation"),
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka" %% "akka-contrib" % akkaVersion,
       "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion,
+      "com.typesafe.akka" %% "akka-cluster-sharding" % akkaVersion,
+      "org.iq80.leveldb" % "leveldb" % "0.7",
       "org.numenta" % "htm.java" % "0.6.1",
       "org.scalatest" %% "scalatest" % "2.2.4" % "test",
       "org.fusesource" % "sigar" % "1.6.4",
