@@ -22,50 +22,6 @@ class HtmModelsClusterListener extends Actor with ActorLogging {
   override def postStop(): Unit = cluster.unsubscribe(self)
 
   def receive = {
-    case CreateHtmModel(id) =>
-      val htmModel = HtmModelFactory()
-      HtmModelsManager.addModel(HtmModel(HtmModelId(id), Nil, htmModel)) match {
-        case None =>
-          log.debug(s"$id added")
-          sender() ! CreateModelOk(id)
-        case Some(_) =>
-          log.debug(s"$id exists")
-          sender() ! CreateModelFail(id)
-      }
-
-    case HtmEventGetModel(hmi) =>
-      HtmModelsManager.getModel(hmi) match {
-        case Some(htmModel) =>
-          log.debug(s"data ${htmModel.data}")
-          sender() ! GetModelData(hmi.id, htmModel.data)
-        case _ =>
-          log.info(s"$hmi not found")
-          sender() ! ModelNotFound(hmi.id)
-      }
-
-    case HtmModelEvent(hmed) =>
-      val capturedSender = sender()
-      HtmModelsManager.getModel(hmed.modelId) match {
-        case Some(htmModel) =>
-          log.info(s"Sending to publisher: ${hmed.timestamp},${hmed.value}")
-          htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
-            def onNext(i: Inference) {
-              this.unsubscribe()
-              println(ModelPrediction(htmModel.id.id, i.getAnomalyScore))
-              HtmModelsManager.updateModel(
-                htmModel.copy(data = HtmModelData(hmed.value, 0L /*TODO get datetime timestamp*/, Some(i.getAnomalyScore)) :: htmModel.data))
-              capturedSender ! ModelPrediction(htmModel.id.id, i.getAnomalyScore)
-            }
-            override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
-            override def onCompleted(): Unit = {}
-          })
-          htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
-
-        case _ =>
-          log.info(s"${hmed.modelId} not found")
-          capturedSender ! ModelNotFound(hmed.modelId.id)
-      }
-
     case MemberUp(member) =>
       log.debug("Member is Up: {}", member.address)
 

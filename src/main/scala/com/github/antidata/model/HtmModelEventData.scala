@@ -1,7 +1,9 @@
 package com.github.antidata.model
 
-case class HtmModelEventData(modelId: HtmModelId, value: Double, timestamp: String)
+import com.github.antidata.actors.messages.ClusterEvent
 
-case class HtmModel(id: HtmModelId, data: List[HtmModelData], network: HtmModelNetwork)
+case class HtmModelEventData(HtmModelId: String, value: Double, timestamp: String) extends ClusterEvent
 
-case class HtmModelData(value: Double, timestamp: Long, anomalyScore: Option[Double])
+case class HtmModel(HtmModelId: String, data: List[HtmModelData], network: HtmModelNetwork) extends ClusterEvent
+
+case class HtmModelData(HtmModelId: String, value: Double, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent

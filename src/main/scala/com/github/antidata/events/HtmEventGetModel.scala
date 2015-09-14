@@ -1,5 +1,5 @@
 package com.github.antidata.events
 
-import com.github.antidata.model.HtmModelId
+import com.github.antidata.actors.messages.ClusterEvent
 
-case class HtmEventGetModel(htmModelId: HtmModelId)
+case class HtmEventGetModel(HtmModelId: String) extends ClusterEvent

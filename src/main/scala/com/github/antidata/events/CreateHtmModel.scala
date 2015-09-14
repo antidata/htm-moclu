@@ -1,3 +1,6 @@
 package com.github.antidata.events
 
-case class CreateHtmModel(id: String)
+import com.github.antidata.actors.messages.ClusterEvent
+
+case class CreateHtmModel(HtmModelId: String) extends ClusterEvent
+
