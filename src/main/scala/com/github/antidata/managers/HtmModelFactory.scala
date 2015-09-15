@@ -1,20 +1,14 @@
 package com.github.antidata.managers
 
-import akka.actor.ActorRef
-import com.github.antidata.actors.messages.ModelPrediction
-import com.github.antidata.model.{HtmModelNetwork, HtmModel}
+import com.github.antidata.model.HtmModelNetwork
 import com.github.antidata.settings.NetworkParameters
-import org.numenta.nupic.Parameters
 import org.numenta.nupic.Parameters.KEY
 import org.numenta.nupic.algorithms.{TemporalMemory, SpatialPooler, Anomaly}
-import org.numenta.nupic.network.{Inference, Network}
+import org.numenta.nupic.network.Network
 import org.numenta.nupic.network.sensor.SensorParams.Keys
 import org.numenta.nupic.network.sensor._
-import rx.Subscriber
 
-object HtmModelFactory extends HtmModelFactory {
-
-}
+object HtmModelFactory extends HtmModelFactory
 
 trait HtmModelFactory {
   def apply(): HtmModelNetwork = {
