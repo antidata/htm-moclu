@@ -8,7 +8,7 @@ val project = Project(
   base = file("."),
   settings = Project.defaultSettings ++ SbtMultiJvm.multiJvmSettings ++ Seq(
     name := "htm-model-cluster",
-    version := "0.1.8",
+    version := "0.1.10",
     scalaVersion := "2.11.7",
     scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.6", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint"),
     javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6", "-Xlint:unchecked", "-Xlint:deprecation"),
@@ -17,7 +17,8 @@ val project = Project(
       "com.typesafe.akka" %% "akka-contrib" % akkaVersion,
       "com.typesafe.akka" %% "akka-multi-node-testkit" % akkaVersion,
       "com.typesafe.akka" %% "akka-cluster-sharding" % akkaVersion,
-      "org.iq80.leveldb" % "leveldb" % "0.7",
+      "com.typesafe.akka"      %% "akka-persistence-experimental"    % "2.4-M2",
+      "com.github.ironfish"    %% "akka-persistence-mongo-casbah"    % "0.7.6",
       "org.numenta" % "htm.java" % "0.6.1",
       "org.scalatest" %% "scalatest" % "2.2.4" % "test",
       "org.fusesource" % "sigar" % "1.6.4",
