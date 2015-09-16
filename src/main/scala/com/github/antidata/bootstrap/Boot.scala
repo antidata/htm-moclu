@@ -12,6 +12,7 @@ import scala.concurrent.duration._
 import akka.pattern.ask
 
 object Boot {
+  var systemRef: ActorSystem = null
   def startup(ports: Seq[String]) = {
     ports map { port =>
       // Override the configuration of the port
@@ -33,18 +34,18 @@ object Boot {
         extractEntityId = HtmModelActor.idExtractor,
         extractShardId = HtmModelActor.shardResolver
       )
-      if(port != "2551") {
-        val p = system.actorOf(Props[HtmMasterActor], "master")
-        p ! CreateHtmModel("123")
-      }
+//      if(port != "2551") {
+//        val p = system.actorOf(Props[HtmMasterActor], "master")
+//        p ! CreateHtmModel("123")
+//      }
+      systemRef = system
       aaa
-  //    clusterActor
     }
   }
   var systems: Seq[ActorRef] = null
   def main(args: Array[String]): Unit = {
     HtmModelsManager.init()
-    systems = startup(Seq("2551", "2552"/*, "0"*/))
+    systems = startup(Seq("2551"/*, "2552", "0"*/))
   }
 
   def startupSharedJournal(system: ActorSystem, startStore: Boolean, path: ActorPath): Unit = {
