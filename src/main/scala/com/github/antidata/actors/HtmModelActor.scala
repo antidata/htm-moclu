@@ -2,11 +2,11 @@ package com.github.antidata.actors
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.sharding.ShardRegion
-import akka.persistence.PersistentActor
+import akka.persistence.{RecoveryCompleted, PersistentActor}
 import com.github.antidata.actors.messages._
 import com.github.antidata.events.{HtmModelEvent, HtmEventGetModel, CreateHtmModel}
 import com.github.antidata.managers.{HtmModelFactory, HtmModelsManager}
-import com.github.antidata.model.{HtmModelData, HtmModelId, HtmModel}
+import com.github.antidata.model._
 import org.numenta.nupic.network.Inference
 import rx.Subscriber
 
@@ -23,7 +23,6 @@ object HtmModelActor {
 
   val shardName = "HtmModelShard"
 
-  private case class State(last: Option[ClusterEvent])
 }
 
 class HtmModelActor extends PersistentActor with ActorLogging {
@@ -31,15 +30,22 @@ class HtmModelActor extends PersistentActor with ActorLogging {
   import HtmModelActor._
   import com.github.antidata.actors.messages._
 
-  override def persistenceId: String = self.path.parent.name + "-" + self.path.name
+  override def persistenceId: String = self.path.parent.name + "-" + self.path.name // TODO Check this
 
-  private var state = State(None)
+  private var state = HtmModelState("", "")
 
   val from = Cluster(context.system).selfAddress.hostPort
 
+  case class HtmModelState(id: String, timestamp: String) {
+
+  }
+
   override def receiveRecover: Receive = {
-    case e: ClusterEvent =>
-      state = State(Some(e))
+    case HtmModelCreated(id) =>
+      state = HtmModelState(id, "")
+
+    case RecoveryCompleted =>
+      log.info("Calculator recovery completed")
   }
 
   val receiveCommand: Receive = {
