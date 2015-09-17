@@ -32,20 +32,25 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
   override def persistenceId: String = self.path.parent.name + "-" + self.path.name // TODO Check this
 
-  private var state = HtmModelState("", "")
+  private var state = HtmModelState("", 0D, "")
 
   val from = Cluster(context.system).selfAddress.hostPort
 
-  case class HtmModelState(id: String, timestamp: String) {
+  case class HtmModelState(id: String, value: Double, timestamp: String) {
+    def created(id: String) = copy(id = id)
+    def event(value: Double, timestamp: String) = copy(value = value, timestamp = timestamp)
+  }
 
+  def updateState: DomainEvent => Unit = {
+    case HtmModelCreated(id) => state = state.created(id)
+    case HtmModeledEvent(v, t) => state = state.event(v, t)
   }
 
   override def receiveRecover: Receive = {
-    case HtmModelCreated(id) =>
-      state = HtmModelState(id, "")
+    case e: DomainEvent => updateState(e)
 
     case RecoveryCompleted =>
-      log.info("Calculator recovery completed")
+      log.info(s"Recovery completed for model ${state.id}")
   }
 
   val receiveCommand: Receive = {
@@ -54,7 +59,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       HtmModelsManager.addModel(HtmModel(id, Nil, htmModel)) match {
         case None =>
           log.debug(s"$id added from $from")
-          println(s"$id added from $from")
+          persist(HtmModelCreated(id))(updateState)
           sender() ! CreateModelOk(id)
         case Some(_) =>
           log.debug(s"$id exists from $from")
@@ -87,6 +92,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
             override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
             override def onCompleted(): Unit = {}
           })
+          persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState)
           htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
 
         case _ =>
