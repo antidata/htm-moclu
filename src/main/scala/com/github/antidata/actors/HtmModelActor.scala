@@ -23,6 +23,21 @@ object HtmModelActor {
 
   val shardName = "HtmModelShard"
 
+
+  trait ClusterEvent {
+    val HtmModelId: String
+  }
+
+  case class CreateModelOk(HtmModelId: String) extends ClusterEvent
+  case class CreateModelFail(HtmModelId: String) extends ClusterEvent
+  case class GetModelData(HtmModelId: String, data: List[HtmModelData]) extends ClusterEvent
+  case class ModelNotFound(HtmModelId: String) extends ClusterEvent
+  case class ModelPrediction(HtmModelId: String, anomalyScore: Double, prediction: Any) extends ClusterEvent
+  case class HtmModelEventData(HtmModelId: String, value: Double, timestamp: String) extends ClusterEvent
+  case class HtmModel(HtmModelId: String, data: List[HtmModelData], network: HtmModelNetwork) extends ClusterEvent
+  case class HtmModelData(HtmModelId: String, value: Double, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent
+
+
 }
 
 class HtmModelActor extends PersistentActor with ActorLogging {
@@ -30,7 +45,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
   import HtmModelActor._
   import com.github.antidata.actors.messages._
 
-  override def persistenceId: String = self.path.parent.name + "-" + self.path.name // TODO Check this
+  override def persistenceId: String = self.path.parent.name + "-" + self.path.name
 
   private var state = HtmModelState("", 0D, "")
 
@@ -42,8 +57,37 @@ class HtmModelActor extends PersistentActor with ActorLogging {
   }
 
   def updateState: DomainEvent => Unit = {
-    case HtmModelCreated(id) => state = state.created(id)
-    case HtmModeledEvent(v, t) => state = state.event(v, t)
+    case HtmModelCreated(id) =>
+      state = state.created(id)
+      // TODO refactor code below
+      val htmModel = HtmModelFactory()
+      HtmModelsManager.addModel(HtmModel(id, Nil, htmModel)) match {
+        case None =>
+          log.debug(s"$id added from $from")
+        case Some(_) =>
+          log.debug(s"$id exists from $from")
+      }
+
+    case HtmModeledEvent(v, t) =>
+      state = state.event(v, t)
+      //TODO refactor code below
+      HtmModelsManager.getModel(HtmModelId(state.id)) match {
+        case Some(htmModel) =>
+          log.info(s"Sending to publisher: ${t},${v}")
+          htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
+            def onNext(i: Inference) {
+              this.unsubscribe()
+              println(ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption")))
+              HtmModelsManager.updateModel(
+                htmModel.copy(data = HtmModelData(htmModel.HtmModelId, v, 0L /*TODO get datetime timestamp*/ , Some(i.getAnomalyScore)) :: htmModel.data))
+            }
+
+            override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
+
+            override def onCompleted(): Unit = {}
+          })
+          htmModel.network.publisher.onNext(s"${t},${v}")
+      }
   }
 
   override def receiveRecover: Receive = {
@@ -76,7 +120,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           sender() ! ModelNotFound(hmi)
       }
 
-    case HtmModelEvent(hmed) =>
+    case HtmModelEvent(id, hmed) =>
       val capturedSender = sender()
       HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
         case Some(htmModel) =>
@@ -84,7 +128,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
             def onNext(i: Inference) {
               this.unsubscribe()
-              println(ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption")))
+              log.info(s"${ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption"))}")
               HtmModelsManager.updateModel(
                 htmModel.copy(data = HtmModelData(htmModel.HtmModelId, hmed.value, 0L /*TODO get datetime timestamp*/, Some(i.getAnomalyScore)) :: htmModel.data))
               capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption"))
