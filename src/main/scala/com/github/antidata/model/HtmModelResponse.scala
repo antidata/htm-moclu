@@ -1,5 +1,7 @@
 package com.github.antidata.model
 
+import com.github.antidata.actors.HtmModelActor.HtmModel
+
 trait HtmModelResponse {
   val msg : String
 }
