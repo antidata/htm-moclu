@@ -3,12 +3,6 @@ package com.github.antidata.actors
 import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
-import com.github.antidata.actors.messages._
-import com.github.antidata.events.{CreateHtmModel, HtmEventGetModel, HtmModelEvent}
-import com.github.antidata.managers.{HtmModelsManager, HtmModelFactory}
-import com.github.antidata.model.{HtmModelData, HtmModelId, HtmModel}
-import org.numenta.nupic.network.Inference
-import rx.Subscriber
 
 class HtmModelsClusterListener extends Actor with ActorLogging {
 

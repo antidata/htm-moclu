@@ -1,6 +1,7 @@
 package com.github.antidata.managers
 
-import com.github.antidata.model.{HtmModelId, HtmModel}
+import com.github.antidata.actors.HtmModelActor.HtmModel
+import com.github.antidata.model.HtmModelId
 import com.twitter.util.LruMap
 
 object HtmModelsManager extends HtmModelsManager

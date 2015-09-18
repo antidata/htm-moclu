@@ -3,8 +3,6 @@ package com.github.antidata.actors
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.sharding.ShardRegion
 import akka.persistence.{RecoveryCompleted, PersistentActor}
-import com.github.antidata.actors.messages._
-import com.github.antidata.events.{HtmModelEvent, HtmEventGetModel, CreateHtmModel}
 import com.github.antidata.managers.{HtmModelFactory, HtmModelsManager}
 import com.github.antidata.model._
 import org.numenta.nupic.network.Inference
@@ -28,6 +26,9 @@ object HtmModelActor {
     val HtmModelId: String
   }
 
+  case class CreateHtmModel(HtmModelId: String) extends ClusterEvent
+  case class HtmEventGetModel(HtmModelId: String) extends ClusterEvent
+  case class HtmModelEvent(HtmModelId: String, htmModelEventData: HtmModelEventData) extends ClusterEvent
   case class CreateModelOk(HtmModelId: String) extends ClusterEvent
   case class CreateModelFail(HtmModelId: String) extends ClusterEvent
   case class GetModelData(HtmModelId: String, data: List[HtmModelData]) extends ClusterEvent
@@ -43,7 +44,7 @@ object HtmModelActor {
 class HtmModelActor extends PersistentActor with ActorLogging {
   import akka.cluster.Cluster
   import HtmModelActor._
-  import com.github.antidata.actors.messages._
+  import com.github.antidata.actors.HtmModelActor._
 
   override def persistenceId: String = self.path.parent.name + "-" + self.path.name
 

@@ -1,6 +1,7 @@
 package com.github.antidata.managers
 
-import com.github.antidata.model.{HtmModelEventsData, HtmStringResponse, HtmModelResponse, HtmModelEventData}
+import com.github.antidata.actors.HtmModelActor.HtmModelEventData
+import com.github.antidata.model.{HtmModelEventsData, HtmStringResponse, HtmModelResponse}
 
 object HtmModelManager extends HtmModelManager
 
