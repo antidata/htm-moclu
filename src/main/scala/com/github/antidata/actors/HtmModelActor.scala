@@ -26,7 +26,7 @@ object HtmModelActor {
     val HtmModelId: String
   }
 
-  case class CreateHtmModel(HtmModelId: String) extends ClusterEvent
+  case class CreateHtmModel(HtmModelId: String) extends ClusterEvent // TODO add min max parameters
   case class HtmEventGetModel(HtmModelId: String) extends ClusterEvent
   case class HtmModelEvent(HtmModelId: String, htmModelEventData: HtmModelEventData) extends ClusterEvent
   case class CreateModelOk(HtmModelId: String) extends ClusterEvent
