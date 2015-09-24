@@ -7,7 +7,8 @@ import com.twitter.util.LruMap
 object HtmModelsManager extends HtmModelsManager
 
 trait HtmModelsManager {
-  protected[this] lazy val cache: LruMap[HtmModelId, HtmModel] = new LruMap[HtmModelId, HtmModel](AppConfiguration.values.getInt("app.cache.size"))
+  protected[this] lazy val cache: scala.collection.mutable.Map[HtmModelId, HtmModel] = scala.collection.mutable.Map[HtmModelId, HtmModel]()
+  //protected[this] lazy val cache: LruMap[HtmModelId, HtmModel] = new LruMap[HtmModelId, HtmModel](AppConfiguration.values.getInt("app.cache.size"))
 
   def getModel(htmModelId: HtmModelId): Option[HtmModel] = cache.get(htmModelId)
   def addModel(htmModel: HtmModel): Option[String] = {
@@ -24,6 +25,6 @@ trait HtmModelsManager {
     cache.update(HtmModelId(htmModel.HtmModelId), htmModel)
   }
   def init() {
-    cache.maxSize
+    cache
   }
 }
