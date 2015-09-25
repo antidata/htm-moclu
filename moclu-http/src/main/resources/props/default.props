@@ -1,0 +1,5 @@
+mail.smtp.host=smtp.gmail.com
+mail.smtp.user=
+mail.smtp.pass=
+
+mongo.default.port=27017
