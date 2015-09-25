@@ -3,7 +3,7 @@ package com.github.antidata.actors
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.sharding.ShardRegion
 import akka.persistence.{RecoveryCompleted, PersistentActor}
-import com.github.antidata.managers.{HtmModelFactory, HtmModelsManager}
+import com.github.antidata.managers.{DatesManager, HtmModelFactory, HtmModelsManager}
 import com.github.antidata.model._
 import org.numenta.nupic.network.Inference
 import rx.Subscriber
@@ -38,7 +38,11 @@ object HtmModelActor {
   case class HtmModel(HtmModelId: String, data: List[HtmModelData], network: HtmModelNetwork) extends ClusterEvent
   case class HtmModelData(HtmModelId: String, value: Double, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent
 
-
+  def filterModelData(id: String, value: Double, time: String)(htmModelData: HtmModelData): Boolean = {
+    id == htmModelData.HtmModelId &&
+    value == htmModelData.value &&
+    DatesManager.toDateTime(time).getMillis == htmModelData.timestamp
+  }
 }
 
 class HtmModelActor extends PersistentActor with ActorLogging {
@@ -71,23 +75,26 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
     case HtmModeledEvent(v, t) =>
       state = state.event(v, t)
+      val filterDef = filterModelData(state.id, v, t) _
       //TODO refactor code below
       HtmModelsManager.getModel(HtmModelId(state.id)) match {
-        case Some(htmModel) =>
-          log.info(s"Sending to publisher: ${t},${v}")
+        case Some(htmModel) if !htmModel.data.exists(filterDef) =>
+          log.info(s"Sending to publisher: $t, $v")
           htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
             def onNext(i: Inference) {
               this.unsubscribe()
-              println(ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption")))
+              println(ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1)))
               HtmModelsManager.updateModel(
-                htmModel.copy(data = HtmModelData(htmModel.HtmModelId, v, 0L /*TODO get datetime timestamp*/ , Some(i.getAnomalyScore)) :: htmModel.data))
+                htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, DatesManager.toDateTime(t).getMillis, Some(i.getAnomalyScore)))))
             }
 
             override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
 
             override def onCompleted(): Unit = {}
           })
-          htmModel.network.publisher.onNext(s"${t},${v}")
+          htmModel.network.publisher.onNext(s"$t, $v")
+        case _ =>
+          log.info(s"HtmModelsManager should contain model ${state.id}")
       }
   }
 
@@ -122,6 +129,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       }
 
     case HtmModelEvent(id, hmed) =>
+      log.info(s"Received HtmModelEvent($id, $hmed)")
       val capturedSender = sender()
       HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
         case Some(htmModel) =>
@@ -129,12 +137,16 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
             def onNext(i: Inference) {
               this.unsubscribe()
-              log.info(s"${ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption"))}")
+              log.info(s"${i.getClassification("consumption")}")
+              log.info(s"${ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1))}")
               HtmModelsManager.updateModel(
-                htmModel.copy(data = HtmModelData(htmModel.HtmModelId, hmed.value, 0L /*TODO get datetime timestamp*/, Some(i.getAnomalyScore)) :: htmModel.data))
-              capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption"))
+                htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, hmed.value, DatesManager.toDateTime(hmed.timestamp).getMillis, Some(i.getAnomalyScore)))))
+              capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1))
             }
-            override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
+            override def onError(throwable: Throwable): Unit = {
+              log.error(throwable.getMessage)
+              capturedSender ! ModelNotFound(id)
+            }
             override def onCompleted(): Unit = {}
           })
           persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState)
