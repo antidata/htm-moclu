@@ -1,6 +1,6 @@
 package com.github.antidata.managers
 
-import com.github.antidata.actors.HtmModelActor.HtmModel
+import com.github.antidata.actors.HtmModelActor.{HtmModelData, HtmModel}
 import com.github.antidata.model.HtmModelId
 import com.twitter.util.LruMap
 
@@ -22,7 +22,10 @@ trait HtmModelsManager {
     }
   }
   def updateModel(htmModel: HtmModel): Unit = {
-    cache.update(HtmModelId(htmModel.HtmModelId), htmModel)
+    getModel(HtmModelId(htmModel.HtmModelId)).foreach { model =>
+      val updatedList = model.data ++ htmModel.data
+      cache.update(HtmModelId(htmModel.HtmModelId), htmModel.copy(data = updatedList))
+    }
   }
   def init() {
     cache
