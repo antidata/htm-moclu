@@ -81,8 +81,10 @@ class HtmModelActor extends PersistentActor with ActorLogging {
         case Some(htmModel) if !htmModel.data.exists(filterDef) =>
           log.info(s"Sending to publisher: $t, $v")
           htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
+            var applied = false
             def onNext(i: Inference) {
-              this.unsubscribe()
+              if(applied) return
+              applied = true
               println(ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1)))
               HtmModelsManager.updateModel(
                 htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, DatesManager.toDateTime(t).getMillis, Some(i.getAnomalyScore)))))
@@ -135,12 +137,12 @@ class HtmModelActor extends PersistentActor with ActorLogging {
         case Some(htmModel) =>
           log.info(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
           htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
+            var applied = false
             def onNext(i: Inference) {
-              this.unsubscribe()
+              if(applied) return
+              applied = true
               log.info(s"${i.getClassification("consumption")}")
               log.info(s"${ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1))}")
-              HtmModelsManager.updateModel(
-                htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, hmed.value, DatesManager.toDateTime(hmed.timestamp).getMillis, Some(i.getAnomalyScore)))))
               capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1))
             }
             override def onError(throwable: Throwable): Unit = {
