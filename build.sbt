@@ -8,7 +8,7 @@ val project = Project(
   base = file("."),
   settings = Project.defaultSettings ++ SbtMultiJvm.multiJvmSettings ++ Seq(
     name := "htm-model-cluster",
-    version := "0.1.12",
+    version := "0.1.18",
     scalaVersion := "2.11.7",
     scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.6", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint"),
     javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6", "-Xlint:unchecked", "-Xlint:deprecation"),
@@ -20,7 +20,7 @@ val project = Project(
       "com.typesafe.akka"      %% "akka-persistence"    % akkaVersion,
       "org.mongodb" %% "casbah" % "2.8.1",
       "com.github.scullxbones" %% "akka-persistence-mongo-casbah" % "1.0.4",
-      "org.numenta" % "htm.java" % "0.6.1",
+      "org.numenta" % "htm.java" % "0.6.3-mSNAPSHOT",
       "org.scalatest" %% "scalatest" % "2.2.4" % "test",
       "org.fusesource" % "sigar" % "1.6.4",
       "com.twitter" %% "util-collection" % "6.25.0"),
@@ -54,7 +54,8 @@ val project = Project(
     resolvers ++= Seq(
       "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases",
       "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-      "Sonatype Public" at " https://oss.sonatype.org/content/groups/public"
+      "Sonatype Public" at " https://oss.sonatype.org/content/groups/public",
+      "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"
     )
   )
 ).configs(MultiJvm)
