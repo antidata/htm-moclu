@@ -9,7 +9,7 @@ import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
 object Boot {
   var systemRef: ActorSystem = null
   def startup(ports: Seq[String]) = {
-    ports map { port =>
+    ports foreach { port =>
       // Override the configuration of the port
       val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port).withFallback(ConfigFactory.load())
 
@@ -18,25 +18,20 @@ object Boot {
 
       val shardSettings = ClusterShardingSettings(system)//.withRole("")
 
-      val aaa = ClusterSharding(system).start(
+      ClusterSharding(system).start(
         typeName = HtmModelActor.shardName,
         entityProps = HtmModelActor.props(),
         settings = shardSettings,
         extractEntityId = HtmModelActor.idExtractor,
         extractShardId = HtmModelActor.shardResolver
       )
-//      if(port != "2551") {
-//        val p = system.actorOf(Props[HtmMasterActor], "master")
-//        p ! CreateHtmModel("123")
-//      }
       systemRef = system
-      aaa
     }
   }
-  var systems: Seq[ActorRef] = null
+
   def main(args: Array[String]): Unit = {
     HtmModelsManager.init()
-    systems = startup(Seq("2551"/*, "2552", "0"*/))
+    startup(Seq("2551"/*, "2552", "0"*/))
   }
 
   def startupWeb(ports: Seq[String]) = {
