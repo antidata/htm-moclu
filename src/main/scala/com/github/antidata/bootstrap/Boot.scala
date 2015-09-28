@@ -36,7 +36,7 @@ object Boot {
   var systems: Seq[ActorRef] = null
   def main(args: Array[String]): Unit = {
     HtmModelsManager.init()
-    systems = startup(Seq("2552"/*, "2552", "0"*/))
+    systems = startup(Seq("2551"/*, "2552", "0"*/))
   }
 
   def startupWeb(ports: Seq[String]) = {
