@@ -4,7 +4,7 @@ Hierarchical Temporal Memory Models Cluster implementation
 
 ## What is Htm-Moclu?
 
-Short for **Hierarchical Temporal Memory Models Cluster**. [Numenta](http://numenta.com/) presented **[HtmEngine](https://github.com/numenta/numenta-apps/tree/master/htmengine)** which is basically a web server to create models in memory and detect anomalies using a REST API. The limitation is that **HtmEngine** is limited to one server, can only be scaled vertically. **Htm-Moclu** is the solution to scale **HtmEngine** horizontally using multiple servers.
+Short for **Hierarchical Temporal Memory Models Cluster**. [Numenta](http://numenta.com/) presented **[HtmEngine](https://github.com/numenta/numenta-apps/tree/master/htmengine)** which is basically a web server to create models in memory and detect anomalies using a REST API. The limitation is that **HtmEngine** run in a server and can only be scaled vertically. **Htm-Moclu** is the solution to scale **HtmEngine** horizontally using multiple servers.
 
 You can have several Web servers and several servers just to handle model data all of them working as a Cluster.
 
