@@ -142,3 +142,22 @@ Example
   }]
 }
 ```
+
+### Few examples using **wget** ###
+* Create
+
+```sh
+wget -O- --header=Content-Type:application/json "http://localhost:8080/create/24StreetSensor"
+```
+
+* Send event data
+
+```sh
+wget -O- --post-data='{"value":13.2,"timestamp":"7/2/10 1:16"}' --header=Content-Type:application/json "http://localhost:8080/event/24StreetSensor"
+```
+
+* Get events data
+
+```sh
+wget -O- --header=Content-Type:application/json "http://localhost:8080/getData/24StreetSensor"
+```
