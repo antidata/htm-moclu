@@ -49,7 +49,9 @@ sbt container:start
 ```
 
 ### Using the REST API ###
-#### Create model - Endpoint ####  
+
+####Create model - Endpoint ####
+
 `/create/{model id}`
 
 Example
