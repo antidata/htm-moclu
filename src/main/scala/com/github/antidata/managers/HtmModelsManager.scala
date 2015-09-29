@@ -30,4 +30,5 @@ trait HtmModelsManager {
   def init() {
     cache
   }
+  def size = cache.size
 }
