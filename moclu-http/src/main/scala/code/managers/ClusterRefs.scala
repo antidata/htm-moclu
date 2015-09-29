@@ -5,7 +5,7 @@ import com.github.antidata.bootstrap.Boot
 
 object ClusterRefs {
   lazy val actorSystem = {
-    Boot.startup(Seq("2552"))
+    Boot.startup(Seq("2551"))
     Boot.systemRef.actorOf(akka.actor.Props[HtmMasterActor], "master"+net.liftweb.util.StringHelpers.randomString(30))
   }
 }
