@@ -163,3 +163,45 @@ wget -O- --post-data='{"value":13.2,"timestamp":"7/2/10 1:16"}' --header=Content
 ```sh
 wget -O- --header=Content-Type:application/json "http://localhost:8080/getData/24StreetSensor"
 ```
+
+### Setting up the Cluster ###
+
+#### Configuring MongoDB ####
+
+To set the IP address where you have MongoDB running just add the following parameter to SBT:
+
+`-DMONGOHOST={IP}`
+
+For example having Mongo running on 192.168.1.144 the config will look like
+
+`-DMONGOHOST=192.168.1.144`
+
+This configuration is the same for all nodes.
+
+#### Cluster Seeds ####
+
+You can have one or more seeds for your Cluster, you can start trying with just one.
+
+add the following parameter to SBT:
+
+`-DSEEDHOST={IP}`
+
+In the case you have the Seed running on 192.168.1.122, after modifying:
+
+`-DSEEDHOST=192.168.1.122`
+
+If you want to add more seed nodes you will need to update the application.conf and add more parameters.
+
+#### Local IP ####
+
+Finally we need to specify the local IP with the following parameter
+
+`-DHOST=192.168.1.123`
+
+In case you are starting the node in 192.168.1.123
+
+#### Putting all together ####
+
+```sh
+$ sbt -Djava.library.path=./sigar -DHOST=192.168.1.123 -DSEEDHOST=192.168.1.122 -DMONGOHOST=192.168.1.144 -Xmx8096M -Xss2M
+```
