@@ -1,21 +1,19 @@
 # HTM-MoClu
 
-Hierarchical Temporal Memory Models Cluster implementation
+> Hierarchical Temporal Memory Models Cluster implementation
 
 ## What is Htm-Moclu?
 
-Short for **Hierarchical Temporal Memory Models Cluster**. [Numenta](http://numenta.com/) presented **[HtmEngine](https://github.com/numenta/numenta-apps/tree/master/htmengine)** which is basically a web server to create models in memory and detect anomalies using a REST API. The limitation is that **HtmEngine** run in a server and can only be scaled vertically. **Htm-Moclu** is the solution to scale **HtmEngine** horizontally using multiple servers.
+Short for **Hierarchical Temporal Memory Models Cluster**. [Numenta](http://numenta.com/) presented **[HtmEngine](https://github.com/numenta/numenta-apps/tree/master/htmengine)** which is a set of long-running services upon which a scalable, real-time, and production-ready scalar anomaly detection application may be built. Currently, **HtmEngine** can only be scaled vertically. **Htm-Moclu** provides a similar platform for [htm.java](https://github.com/numenta/htm.java) applications, and has the ability to scale horizontally using multiple servers.
 
 You can have several Web servers and several servers just to handle model data all of them working as a Cluster.
 
-Architecture
-Models anomaly detection and prediction provided by [htm.java](https://github.com/numenta/htm.java)
+## Architecture
 
-Cluster implemented using **Akka Cluster + Sharing + Persistence**
-
-Data store: Mongodb
-
-Rest API: Lift Framework (moclu-http)
+- Models, anomaly detection, and prediction provided by [htm.java](https://github.com/numenta/htm.java)
+- Cluster implemented using **Akka Cluster + Sharing + Persistence**
+- Data store: Mongodb
+- Rest API: Lift Framework (moclu-http)
 
 ## Installation ##
 
