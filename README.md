@@ -45,7 +45,7 @@ sbt console
 ***Starting the Web server***
 ```sh
 cd htm-moclu/moclu-http
-sbt container:start
+sbt ~container:start
 ```
 
 ### Using the REST API ###
@@ -149,7 +149,7 @@ Example
 * Create
 
 ```sh
-wget -O- --header=Content-Type:application/json "http://localhost:8080/create/24StreetSensor"
+wget -O- --post-data='{}' --header=Content-Type:application/json "http://localhost:8080/create/24StreetSensor"
 ```
 
 * Send event data
