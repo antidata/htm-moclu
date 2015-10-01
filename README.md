@@ -159,7 +159,7 @@ wget -O- --post-data='{"value":13.2,"timestamp":"7/2/10 1:16"}' --header=Content
 * Get events data
 
 ```sh
-wget -O- --header=Content-Type:application/json "http://localhost:8080/getData/24StreetSensor"
+wget -O- --post-data='{}' --header=Content-Type:application/json "http://localhost:8080/getData/24StreetSensor"
 ```
 
 ### Setting up the Cluster ###
