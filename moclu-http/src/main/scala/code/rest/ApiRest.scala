@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import net.liftweb.json.JsonAST.{JString, JDouble, JArray}
 import net.liftweb.json.JsonDSL._
 
-object TestRest extends RestHelper {
+object ApiRest extends RestHelper {
   implicit val timeout = akka.util.Timeout(10L, java.util.concurrent.TimeUnit.SECONDS)
 
   serve {

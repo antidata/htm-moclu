@@ -2,7 +2,7 @@ package bootstrap.liftweb
 
 import javax.mail.internet.MimeMessage
 import code.managers.ClusterRefs
-import code.rest.TestRest
+import code.rest.ApiRest
 import net.liftweb._
 import common._
 import http._
@@ -59,7 +59,7 @@ class Boot extends Loggable {
 
     // Cluster
 
-    LiftRules.statelessDispatch.append(TestRest)
+    LiftRules.statelessDispatch.append(ApiRest)
 
     // Init
 
