@@ -10,6 +10,7 @@ object LiftProjectBuild extends Build {
     .settings(liftAppSettings: _*)
     .settings(libraryDependencies ++=
       compile(
+        jettyWebapp,
         liftWebkit,
         liftMongodb,
         logback,
