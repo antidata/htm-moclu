@@ -16,7 +16,7 @@ import net.liftweb.json.JsonDSL._
 
 object ApiRest extends RestHelper {
   implicit val timeout = akka.util.Timeout(10L, java.util.concurrent.TimeUnit.SECONDS)
-
+  lazy val clusterTimeout = net.liftweb.util.Helpers.TimeSpan(60000L)
   serve {
     case "create" :: id :: _ JsonPost json -> _ =>
       // TODO send max and min parameters
@@ -58,7 +58,7 @@ object ApiRest extends RestHelper {
               ("status" -> 302) ~ ("msg" -> s"Cluster timeout")
             )
           )
-        }, net.liftweb.util.Helpers.TimeSpan(10000L))
+        }, clusterTimeout)
       })
 
     case "event" :: id :: _ JsonPost json -> _ =>
@@ -95,7 +95,7 @@ object ApiRest extends RestHelper {
                 ("status" -> 302) ~ ("msg" -> s"Cluster timeout")
               )
             )
-          }, net.liftweb.util.Helpers.TimeSpan(10000L))
+          }, clusterTimeout)
         })
       }
 
@@ -133,7 +133,7 @@ object ApiRest extends RestHelper {
               ("status" -> 302) ~ ("msg" -> s"Cluster timeout")
             )
           )
-        }, net.liftweb.util.Helpers.TimeSpan(10000L))
+        }, clusterTimeout)
       })
 
     case e =>

@@ -7,6 +7,7 @@ import com.github.antidata.managers.{DatesManager, HtmModelFactory, HtmModelsMan
 import com.github.antidata.model._
 import org.numenta.nupic.network.Inference
 import rx.Subscriber
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object HtmModelActor {
   def props(): Props = Props(new HtmModelActor())
@@ -37,6 +38,7 @@ object HtmModelActor {
   case class HtmModelEventData(HtmModelId: String, value: Double, timestamp: String) extends ClusterEvent
   case class HtmModel(HtmModelId: String, data: List[HtmModelData], network: HtmModelNetwork) extends ClusterEvent
   case class HtmModelData(HtmModelId: String, value: Double, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent
+  case class DelayedHtmModelEvent(HtmModelId: String, event: HtmModelEvent, count: Int) extends ClusterEvent
 
   def filterModelData(id: String, value: Double, time: String)(htmModelData: HtmModelData): Boolean = {
     id == htmModelData.HtmModelId &&
@@ -73,7 +75,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           log.debug(s"$id exists from $from")
       }
 
-    case HtmModeledEvent(v, t) =>
+    case e@HtmModeledEvent(v, t) =>
       state = state.event(v, t)
       val filterDef = filterModelData(state.id, v, t) _
       //TODO refactor code below
@@ -85,7 +87,6 @@ class HtmModelActor extends PersistentActor with ActorLogging {
             def onNext(i: Inference) {
               if(applied) return
               applied = true
-              println(ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1)))
               HtmModelsManager.updateModel(
                 htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, DatesManager.toDateTime(t).getMillis, Some(i.getAnomalyScore)))))
             }
@@ -109,16 +110,9 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
   val receiveCommand: Receive = {
     case CreateHtmModel(id) =>
-      val htmModel = HtmModelFactory()
-      HtmModelsManager.addModel(HtmModel(id, Nil, htmModel)) match {
-        case None =>
-          log.debug(s"$id added from $from")
-          persist(HtmModelCreated(id))(updateState)
-          sender() ! CreateModelOk(id)
-        case Some(_) =>
-          log.debug(s"$id exists from $from")
-          sender() ! CreateModelFail(id)
-      }
+      log.debug(s"$id added from $from")
+      persist(HtmModelCreated(id))(updateState)
+      sender() ! CreateModelOk(id)
 
     case HtmEventGetModel(hmi) =>
       HtmModelsManager.getModel(HtmModelId(hmi)) match {
@@ -130,7 +124,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           sender() ! ModelNotFound(hmi)
       }
 
-    case HtmModelEvent(id, hmed) =>
+    case e@HtmModelEvent(id, hmed) =>
       log.info(s"Received HtmModelEvent($id, $hmed)")
       val capturedSender = sender()
       HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
@@ -141,8 +135,6 @@ class HtmModelActor extends PersistentActor with ActorLogging {
             def onNext(i: Inference) {
               if(applied) return
               applied = true
-              log.info(s"${i.getClassification("consumption")}")
-              log.info(s"${ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1))}")
               capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1))
             }
             override def onError(throwable: Throwable): Unit = {
@@ -155,8 +147,24 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
 
         case _ =>
-          log.info(s"${hmed.HtmModelId} not found from $from")
+          // If the model is not yet in the manager then wait delaying the event
+          val dEvent = DelayedHtmModelEvent(id, e, 1)
+          context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
+          log.info(s"${hmed.HtmModelId} not found from $from delayed event")
           capturedSender ! ModelNotFound(hmed.HtmModelId)
+      }
+
+    case d@DelayedHtmModelEvent(id, e, c) =>
+      log.debug(s"Received DelayedHtmModelEvent($id, ${e.htmModelEventData})")
+      HtmModelsManager.getModel(HtmModelId(id)) match {
+        case Some(htmModel) =>
+          persist(HtmModeledEvent(e.htmModelEventData.value, e.htmModelEventData.timestamp))(updateState)
+          htmModel.network.publisher.onNext(s"${e.htmModelEventData.timestamp},${e.htmModelEventData.value}")
+
+        case _ =>
+          // If the model is not yet in the manager then wait delaying the event
+          val dEvent = DelayedHtmModelEvent(id, e, c+1)
+          context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
       }
   }
 }
