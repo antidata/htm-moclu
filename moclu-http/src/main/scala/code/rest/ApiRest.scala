@@ -99,6 +99,24 @@ object ApiRest extends RestHelper {
         })
       }
 
+    case "bulkEvent" :: id :: _ JsonPost json -> _ =>
+      val params: Option[(Double, String)] =
+        (json \ "value", json \ "timestamp") match {
+          case (JDouble(valueJ), JString(timestampJ)) => Some(valueJ -> timestampJ)
+          case _ => None
+        }
+
+      if(params.isEmpty)
+        JsonResponse(
+          ("status" -> 302) ~ ("msg" -> s"Invalid request, expected {value:12, timestamp:'string'}")
+        ) else {
+        val (value, time): (Double, String) = params.get
+        ClusterRefs.actorSystem ! BulkHtmModelEvent(id, HtmModelEventData(id, value, time))
+        JsonResponse(
+          ("status" -> 200) ~ ("msg" -> s"ok")
+        )
+      }
+
     case "getData" :: id :: _ JsonPost json -> _ =>
 
       val response: Promise[LiftResponse] = Promise()
