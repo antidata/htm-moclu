@@ -36,7 +36,7 @@ object Dependencies {
 
   // HTM
   val htmjava = "org.numenta" % "htm.java" % "0.6.3-SNAPSHOT"
-  val moclu = "htm-model-cluster" % "htm-model-cluster_2.11" % "0.1.26"
+  val moclu = "htm-model-cluster" % "htm-model-cluster_2.11" % "0.1.27"
 
   // Akka
   val akkaCluster = "com.typesafe.akka" %% "akka-cluster" % Ver.akka

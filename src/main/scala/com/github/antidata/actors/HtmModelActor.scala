@@ -8,6 +8,7 @@ import com.github.antidata.model._
 import org.numenta.nupic.network.Inference
 import rx.Subscriber
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.implicitConversions
 
 object HtmModelActor {
   def props(): Props = Props(new HtmModelActor())
@@ -30,6 +31,7 @@ object HtmModelActor {
   case class CreateHtmModel(HtmModelId: String) extends ClusterEvent // TODO add min max parameters
   case class HtmEventGetModel(HtmModelId: String) extends ClusterEvent
   case class HtmModelEvent(HtmModelId: String, htmModelEventData: HtmModelEventData) extends ClusterEvent
+  case class BulkHtmModelEvent(HtmModelId: String, htmModelEventData: HtmModelEventData) extends ClusterEvent
   case class CreateModelOk(HtmModelId: String) extends ClusterEvent
   case class CreateModelFail(HtmModelId: String) extends ClusterEvent
   case class GetModelData(HtmModelId: String, data: List[HtmModelData]) extends ClusterEvent
@@ -154,6 +156,23 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           capturedSender ! ModelNotFound(hmed.HtmModelId)
       }
 
+    case e@BulkHtmModelEvent(id, hmed) =>
+      log.info(s"Received BulkHtmModelEvent($id, $hmed)")
+      val capturedSender = sender()
+      HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
+        case Some(htmModel) =>
+          log.info(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
+          persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState)
+          htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
+
+        case _ =>
+          // If the model is not yet in the manager then wait delaying the event
+          val dEvent = DelayedHtmModelEvent(id, e, 1)
+          context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
+          log.info(s"${hmed.HtmModelId} not found from $from delayed event")
+          capturedSender ! ModelNotFound(hmed.HtmModelId)
+      }
+
     case d@DelayedHtmModelEvent(id, e, c) =>
       log.debug(s"Received DelayedHtmModelEvent($id, ${e.htmModelEventData})")
       HtmModelsManager.getModel(HtmModelId(id)) match {
@@ -167,4 +186,6 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
       }
   }
+
+  implicit def bulk2Event(bulk: BulkHtmModelEvent): HtmModelEvent = HtmModelEvent(bulk.HtmModelId, bulk.htmModelEventData)
 }
