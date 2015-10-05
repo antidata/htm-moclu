@@ -16,7 +16,7 @@ import net.liftweb.json.JsonDSL._
 
 object ApiRest extends RestHelper {
   implicit val timeout = akka.util.Timeout(10L, java.util.concurrent.TimeUnit.SECONDS)
-
+  lazy val clusterTimeout = net.liftweb.util.Helpers.TimeSpan(60000L)
   serve {
     case "create" :: id :: _ JsonPost json -> _ =>
       // TODO send max and min parameters
@@ -58,7 +58,7 @@ object ApiRest extends RestHelper {
               ("status" -> 302) ~ ("msg" -> s"Cluster timeout")
             )
           )
-        }, net.liftweb.util.Helpers.TimeSpan(10000L))
+        }, clusterTimeout)
       })
 
     case "event" :: id :: _ JsonPost json -> _ =>
@@ -95,8 +95,26 @@ object ApiRest extends RestHelper {
                 ("status" -> 302) ~ ("msg" -> s"Cluster timeout")
               )
             )
-          }, net.liftweb.util.Helpers.TimeSpan(10000L))
+          }, clusterTimeout)
         })
+      }
+
+    case "bulkEvent" :: id :: _ JsonPost json -> _ =>
+      val params: Option[(Double, String)] =
+        (json \ "value", json \ "timestamp") match {
+          case (JDouble(valueJ), JString(timestampJ)) => Some(valueJ -> timestampJ)
+          case _ => None
+        }
+
+      if(params.isEmpty)
+        JsonResponse(
+          ("status" -> 302) ~ ("msg" -> s"Invalid request, expected {value:12, timestamp:'string'}")
+        ) else {
+        val (value, time): (Double, String) = params.get
+        ClusterRefs.actorSystem ! BulkHtmModelEvent(id, HtmModelEventData(id, value, time))
+        JsonResponse(
+          ("status" -> 200) ~ ("msg" -> s"ok")
+        )
       }
 
     case "getData" :: id :: _ JsonPost json -> _ =>
@@ -133,7 +151,7 @@ object ApiRest extends RestHelper {
               ("status" -> 302) ~ ("msg" -> s"Cluster timeout")
             )
           )
-        }, net.liftweb.util.Helpers.TimeSpan(10000L))
+        }, clusterTimeout)
       })
 
     case e =>

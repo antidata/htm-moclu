@@ -2,18 +2,15 @@ import com.earldouglas.xsbtwebplugin.WebPlugin
 import sbt._
 import sbt.Keys._
 import com.earldouglas.xsbtwebplugin.WebPlugin.{container, webSettings}
-import com.earldouglas.xsbtwebplugin.PluginKeys._
+import sbtassembly.MergeStrategy
 import sbtbuildinfo.Plugin._
-import less.Plugin._
-import sbtbuildinfo.Plugin._
-import sbtclosure.SbtClosurePlugin._
 
 object BuildSettings {
 
   val buildTime = SettingKey[String]("build-time")
 
   val basicSettings = Defaults.defaultSettings ++ Seq(
-    name := "moclu-hhtp",
+    name := "moclu-http",
     version := "0.1-SNAPSHOT",
     scalaVersion := "2.11.7",
     scalacOptions := Seq("-deprecation", "-unchecked", "-feature", "-language:postfixOps", "-language:implicitConversions"),
@@ -29,9 +26,18 @@ object BuildSettings {
       // build-info
       buildInfoKeys ++= Seq[BuildInfoKey](buildTime),
       buildInfoPackage := "code",
-      sourceGenerators in Compile <+= buildInfo
-
-    )
+      sourceGenerators in Compile <+= buildInfo,
+      mainClass in Compile := Some("code.WebServerStarter"),
+      test in sbtassembly.AssemblyKeys.assembly := {},
+      resourceGenerators in Compile <+= (resourceManaged, baseDirectory) map { (managedBase, base) =>
+      val webappBase = base / "src" / "main" / "webapp"
+      for {
+        (from, to) <- webappBase ** "*" x rebase(webappBase, managedBase / "main" / "webapp")
+      } yield {
+        Sync.copy(from, to)
+        to
+      }
+    })
 
   lazy val noPublishing = seq(
     publish := (),

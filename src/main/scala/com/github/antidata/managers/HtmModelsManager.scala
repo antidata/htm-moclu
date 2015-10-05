@@ -21,6 +21,16 @@ trait HtmModelsManager {
         None
     }
   }
+  def addModel(id: String) {
+    cache.get(HtmModelId(id)) match {
+      case None =>
+        val htmModel = HtmModelFactory()
+        cache += (HtmModelId(id) -> HtmModel(id, Nil, htmModel))
+        None
+      case _ =>
+        // Already in cache
+    }
+  }
   def updateModel(htmModel: HtmModel): Unit = {
     getModel(HtmModelId(htmModel.HtmModelId)).foreach { model =>
       val updatedList = model.data ++ htmModel.data
