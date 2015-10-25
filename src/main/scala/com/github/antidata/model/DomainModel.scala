@@ -4,4 +4,4 @@ sealed trait DomainEvent
 
 case class HtmModelCreated(id: String) extends DomainEvent
 
-case class HtmModeledEvent(value: Double, timestamp: String) extends DomainEvent
+case class HtmModeledEvent(value: String, timestamp: String) extends DomainEvent
