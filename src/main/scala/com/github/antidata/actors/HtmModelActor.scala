@@ -3,7 +3,7 @@ package com.github.antidata.actors
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.sharding.ShardRegion
 import akka.persistence.{RecoveryCompleted, PersistentActor}
-import com.github.antidata.managers.{DatesManager, HtmModelFactory, HtmModelsManager}
+import com.github.antidata.managers.{HtmGeoModelFactory, DatesManager, HtmModelFactory, HtmModelsManager}
 import com.github.antidata.model._
 import org.numenta.nupic.network.Inference
 import rx.Subscriber
@@ -37,12 +37,12 @@ object HtmModelActor {
   case class GetModelData(HtmModelId: String, data: List[HtmModelData]) extends ClusterEvent
   case class ModelNotFound(HtmModelId: String) extends ClusterEvent
   case class ModelPrediction(HtmModelId: String, anomalyScore: Double, prediction: Any) extends ClusterEvent
-  case class HtmModelEventData(HtmModelId: String, value: Double, timestamp: String) extends ClusterEvent
+  case class HtmModelEventData(HtmModelId: String, value: String, timestamp: String) extends ClusterEvent
   case class HtmModel(HtmModelId: String, data: List[HtmModelData], network: HtmModelNetwork) extends ClusterEvent
-  case class HtmModelData(HtmModelId: String, value: Double, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent
+  case class HtmModelData(HtmModelId: String, value: String, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent
   case class DelayedHtmModelEvent(HtmModelId: String, event: HtmModelEvent, count: Int) extends ClusterEvent
 
-  def filterModelData(id: String, value: Double, time: String)(htmModelData: HtmModelData): Boolean = {
+  def filterModelData(id: String, value: String, time: String)(htmModelData: HtmModelData): Boolean = {
     id == htmModelData.HtmModelId &&
     value == htmModelData.value &&
     DatesManager.toDateTime(time).getMillis == htmModelData.timestamp
@@ -56,20 +56,20 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
   override def persistenceId: String = self.path.parent.name + "-" + self.path.name
 
-  private var state = HtmModelState("", 0D, "")
+  private var state = HtmModelState("", "", "")
 
   val from = Cluster(context.system).selfAddress.hostPort
 
-  case class HtmModelState(id: String, value: Double, timestamp: String) {
+  case class HtmModelState(id: String, value: String, timestamp: String) {
     def created(id: String) = copy(id = id)
-    def event(value: Double, timestamp: String) = copy(value = value, timestamp = timestamp)
+    def event(value: String, timestamp: String) = copy(value = value, timestamp = timestamp)
   }
 
   def updateState: DomainEvent => Unit = {
     case HtmModelCreated(id) =>
       state = state.created(id)
       // TODO refactor code below
-      val htmModel = HtmModelFactory()
+      val htmModel = HtmGeoModelFactory()
       HtmModelsManager.addModel(HtmModel(id, Nil, htmModel)) match {
         case None =>
           log.debug(s"$id added from $from")
@@ -137,7 +137,8 @@ class HtmModelActor extends PersistentActor with ActorLogging {
             def onNext(i: Inference) {
               if(applied) return
               applied = true
-              capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("consumption").getMostProbableValue(1))
+              capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, "0")
+              //capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("location").getMostProbableValue(1))
             }
             override def onError(throwable: Throwable): Unit = {
               log.error(throwable.getMessage)
