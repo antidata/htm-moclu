@@ -1,6 +1,6 @@
 package com.github.antidata.actors
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{ActorRef, Actor, ActorLogging, Props}
 import akka.cluster.sharding.ShardRegion
 import akka.persistence.{RecoveryCompleted, PersistentActor}
 import com.github.antidata.managers.{HtmGeoModelFactory, DatesManager, HtmModelFactory, HtmModelsManager}
@@ -41,6 +41,7 @@ object HtmModelActor {
   case class HtmModel(HtmModelId: String, data: List[HtmModelData], network: HtmModelNetwork) extends ClusterEvent
   case class HtmModelData(HtmModelId: String, value: String, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent
   case class DelayedHtmModelEvent(HtmModelId: String, event: HtmModelEvent, count: Int) extends ClusterEvent
+  case class ResetNetwork(HtmModelId: String) extends ClusterEvent
 
   def filterModelData(id: String, value: String, time: String)(htmModelData: HtmModelData): Boolean = {
     id == htmModelData.HtmModelId &&
@@ -65,7 +66,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
     def event(value: String, timestamp: String) = copy(value = value, timestamp = timestamp)
   }
 
-  def updateState: DomainEvent => Unit = {
+  def updateState(sender: Option[ActorRef]): DomainEvent => Unit = {
     case HtmModelCreated(id) =>
       state = state.created(id)
       // TODO refactor code below
@@ -89,12 +90,13 @@ class HtmModelActor extends PersistentActor with ActorLogging {
             def onNext(i: Inference) {
               if(applied) return
               applied = true
+              log.info(s"=========> $t   ----  ${DatesManager.toDateTime(t).getMillis}")
               HtmModelsManager.updateModel(
                 htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, DatesManager.toDateTime(t).getMillis, Some(i.getAnomalyScore)))))
+              sender.foreach(_ ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, "0"))
+              //capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("location").getMostProbableValue(1))
             }
-
             override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
-
             override def onCompleted(): Unit = {}
           })
           htmModel.network.publisher.onNext(s"$t, $v")
@@ -104,7 +106,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
   }
 
   override def receiveRecover: Receive = {
-    case e: DomainEvent => updateState(e)
+    case e: DomainEvent => updateState(None)(e)
 
     case RecoveryCompleted =>
       log.info(s"Recovery completed for model ${state.id}")
@@ -113,7 +115,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
   val receiveCommand: Receive = {
     case CreateHtmModel(id) =>
       log.debug(s"$id added from $from")
-      persist(HtmModelCreated(id))(updateState)
+      persist(HtmModelCreated(id))(updateState(None))
       sender() ! CreateModelOk(id)
 
     case HtmEventGetModel(hmi) =>
@@ -131,29 +133,14 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       val capturedSender = sender()
       HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
         case Some(htmModel) =>
-          log.info(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
-          htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
-            var applied = false
-            def onNext(i: Inference) {
-              if(applied) return
-              applied = true
-              capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, "0")
-              //capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("location").getMostProbableValue(1))
-            }
-            override def onError(throwable: Throwable): Unit = {
-              log.error(throwable.getMessage)
-              capturedSender ! ModelNotFound(id)
-            }
-            override def onCompleted(): Unit = {}
-          })
-          persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState)
-          htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
+          log.debug(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
+          persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState(Some(capturedSender)))
 
         case _ =>
           // If the model is not yet in the manager then wait delaying the event
           val dEvent = DelayedHtmModelEvent(id, e, 1)
           context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
-          log.info(s"${hmed.HtmModelId} not found from $from delayed event")
+          log.debug(s"${hmed.HtmModelId} not found from $from delayed event")
           capturedSender ! ModelNotFound(hmed.HtmModelId)
       }
 
@@ -162,15 +149,14 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       val capturedSender = sender()
       HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
         case Some(htmModel) =>
-          log.info(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
-          persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState)
-          htmModel.network.publisher.onNext(s"${hmed.timestamp},${hmed.value}")
+          log.debug(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
+          persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState(None))
 
         case _ =>
           // If the model is not yet in the manager then wait delaying the event
           val dEvent = DelayedHtmModelEvent(id, e, 1)
           context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
-          log.info(s"${hmed.HtmModelId} not found from $from delayed event")
+          log.debug(s"${hmed.HtmModelId} not found from $from delayed event")
           capturedSender ! ModelNotFound(hmed.HtmModelId)
       }
 
@@ -178,14 +164,16 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       log.debug(s"Received DelayedHtmModelEvent($id, ${e.htmModelEventData})")
       HtmModelsManager.getModel(HtmModelId(id)) match {
         case Some(htmModel) =>
-          persist(HtmModeledEvent(e.htmModelEventData.value, e.htmModelEventData.timestamp))(updateState)
-          htmModel.network.publisher.onNext(s"${e.htmModelEventData.timestamp},${e.htmModelEventData.value}")
+          persist(HtmModeledEvent(e.htmModelEventData.value, e.htmModelEventData.timestamp))(updateState(None))
 
         case _ =>
           // If the model is not yet in the manager then wait delaying the event
           val dEvent = DelayedHtmModelEvent(id, e, c+1)
           context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
       }
+
+    case r@ResetNetwork(id) =>
+      HtmModelsManager.resetNetwork(id)
   }
 
   implicit def bulk2Event(bulk: BulkHtmModelEvent): HtmModelEvent = HtmModelEvent(bulk.HtmModelId, bulk.htmModelEventData)
