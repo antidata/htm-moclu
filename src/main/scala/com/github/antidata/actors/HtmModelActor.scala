@@ -46,7 +46,7 @@ object HtmModelActor {
   def filterModelData(id: String, value: String, time: String)(htmModelData: HtmModelData): Boolean = {
     id == htmModelData.HtmModelId &&
     value == htmModelData.value &&
-    DatesManager.toDateTime(time).getMillis == htmModelData.timestamp
+    (DatesManager.parseLong(time).getOrElse(0L) * 1000L) == htmModelData.timestamp
   }
 }
 
@@ -81,25 +81,27 @@ class HtmModelActor extends PersistentActor with ActorLogging {
     case e@HtmModeledEvent(v, t) =>
       state = state.event(v, t)
       val filterDef = filterModelData(state.id, v, t) _
-      //TODO refactor code below
       HtmModelsManager.getModel(HtmModelId(state.id)) match {
         case Some(htmModel) if !htmModel.data.exists(filterDef) =>
           log.info(s"Sending to publisher: $t, $v")
-          htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
-            var applied = false
-            def onNext(i: Inference) {
-              if(applied) return
-              applied = true
-              log.info(s"=========> $t   ----  ${DatesManager.toDateTime(t).getMillis}")
-              HtmModelsManager.updateModel(
-                htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, DatesManager.toDateTime(t).getMillis, Some(i.getAnomalyScore)))))
-              sender.foreach(_ ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, "0"))
-              //capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("location").getMostProbableValue(1))
-            }
-            override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
-            override def onCompleted(): Unit = {}
-          })
-          htmModel.network.publisher.onNext(s"$t, $v")
+          val millisOpt = DatesManager.parseLong(t)
+          millisOpt.foreach { millis =>
+            htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
+              var applied = false
+              def onNext(i: Inference) {
+                if(applied) return
+                applied = true
+                HtmModelsManager.updateModel(
+                  htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, millis * 1000L, Some(i.getAnomalyScore)))))
+                sender.foreach(_ ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, "0"))
+                //capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("location").getMostProbableValue(1))
+              }
+              override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
+              override def onCompleted(): Unit = {}
+            })
+            htmModel.network.publisher.onNext(s"${DatesManager.toDateTime(millis * 1000L)}, $v")
+          }
+
         case _ =>
           log.info(s"HtmModelsManager should contain model ${state.id}")
       }
