@@ -105,6 +105,10 @@ class HtmModelActor extends PersistentActor with ActorLogging {
         case _ =>
           log.info(s"HtmModelsManager should contain model ${state.id}")
       }
+
+    case e@HtmModelResetted(id) =>
+      HtmModelsManager.resetNetwork(id)
+
   }
 
   override def receiveRecover: Receive = {
@@ -175,7 +179,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       }
 
     case r@ResetNetwork(id) =>
-      HtmModelsManager.resetNetwork(id)
+      persist(HtmModelResetted(id))(updateState(None))
   }
 
   implicit def bulk2Event(bulk: BulkHtmModelEvent): HtmModelEvent = HtmModelEvent(bulk.HtmModelId, bulk.htmModelEventData)
