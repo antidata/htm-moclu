@@ -87,7 +87,7 @@ public class NetworkParameters {
 
     public static Map<String, Map<String, Object>> getNetworkDemoFieldEncodingMap() {
         Map fieldEncodings = setupMap((Map)null, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, (Boolean)null, (Boolean)null, (Boolean)null, "timestamp", "datetime", "DateEncoder");
-        //fieldEncodings = setupMap(fieldEncodings, 50, 21, 0.0D, 360.0D, 0.0D, 0.1D, (Boolean)null, Boolean.TRUE, (Boolean)null, "consumption", "float", "ScalarEncoder");
+        fieldEncodings = setupMap(fieldEncodings, 50, 21, 0.0D, 360.0D, 0.0D, 0.1D, (Boolean)null, Boolean.TRUE, (Boolean)null, "consumption", "float", "ScalarEncoder");
         fieldEncodings = setupMap(fieldEncodings, 999, 25, 0.0D, 100.0D, 0.0D, 0.1D, (Boolean)null, Boolean.TRUE, (Boolean)null, "location", "geo", "GeospatialCoordinateEncoder");
         ((Map)fieldEncodings.get("timestamp")).put(Parameters.KEY.DATEFIELD_TOFD.getFieldName(), new Tuple(new Object[]{Integer.valueOf(21), Double.valueOf(9.5D)}));
         ((Map)fieldEncodings.get("timestamp")).put(Parameters.KEY.DATEFIELD_PATTERN.getFieldName(), "MM/dd/YY HH:mm");

@@ -20,7 +20,7 @@ val project = Project(
       "com.typesafe.akka"      %% "akka-persistence"    % akkaVersion,
       "org.mongodb" %% "casbah" % "2.8.1",
       "com.github.scullxbones" %% "akka-persistence-mongo-casbah" % "1.0.4",
-      "org.numenta" % "htm.java" % "0.6.3-sSNAPSHOT",
+      "org.numenta" % "htm.java" % "0.6.5-eSNAPSHOT",
       "org.scalatest" %% "scalatest" % "2.2.4" % "test",
       "org.fusesource" % "sigar" % "1.6.4",
       "com.twitter" %% "util-collection" % "6.25.0"),

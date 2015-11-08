@@ -71,5 +71,5 @@ object HtmGeoModelFactory extends HtmModelFactory with HtmPublisher {
     HtmModelNetwork(net, publisher, sensor)
   }
 
-  def getPublisher = Publisher.builder.addHeader("timestamp,location").addHeader("datetime,geo").addHeader("T,").build
+  def getPublisher = Publisher.builder.addHeader("timestamp,consumption,location").addHeader("datetime,float,geo").addHeader("T,,").build
 }
