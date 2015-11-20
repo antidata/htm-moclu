@@ -41,4 +41,12 @@ trait HtmModelsManager {
     cache
   }
   def size = cache.size
+
+  def resetNetwork(htmModelId: String): Unit = {
+    cache.get(HtmModelId(htmModelId)).foreach(_.network.net.reset())
+  }
+
+  def editNetworkLearning(htmModelId: String, learning: Boolean): Unit = {
+    cache.get(HtmModelId(htmModelId)).foreach(_.network.net.setLearn(learning))
+  }
 }

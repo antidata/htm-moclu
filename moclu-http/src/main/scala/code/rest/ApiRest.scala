@@ -62,9 +62,9 @@ object ApiRest extends RestHelper {
       })
 
     case "event" :: id :: _ JsonPost json -> _ =>
-      val params: Option[(Double, String)] =
+      val params: Option[(String, String)] =
         (json \ "value", json \ "timestamp") match {
-          case (JDouble(valueJ), JString(timestampJ)) => Some(valueJ -> timestampJ)
+          case (JString(valueJ), JString(timestampJ)) => Some(valueJ -> timestampJ)
           case _ => None
         }
 
@@ -72,7 +72,7 @@ object ApiRest extends RestHelper {
         JsonResponse(
           ("status" -> 302) ~ ("msg" -> s"Invalid request, expected {value:12, timestamp:'string'}")
         ) else {
-        val (value, time): (Double, String) = params.get
+        val (value, time): (String, String) = params.get
         RestContinuation.async(f => {
           val fut = (ClusterRefs.actorSystem ? HtmModelEvent(id, HtmModelEventData(id, value, time))).mapTo[ClusterEvent]
           fut.onSuccess {
@@ -100,9 +100,9 @@ object ApiRest extends RestHelper {
       }
 
     case "bulkEvent" :: id :: _ JsonPost json -> _ =>
-      val params: Option[(Double, String)] =
+      val params: Option[(String, String)] =
         (json \ "value", json \ "timestamp") match {
-          case (JDouble(valueJ), JString(timestampJ)) => Some(valueJ -> timestampJ)
+          case (JString(valueJ), JString(timestampJ)) => Some(valueJ -> timestampJ)
           case _ => None
         }
 
@@ -110,7 +110,7 @@ object ApiRest extends RestHelper {
         JsonResponse(
           ("status" -> 302) ~ ("msg" -> s"Invalid request, expected {value:12, timestamp:'string'}")
         ) else {
-        val (value, time): (Double, String) = params.get
+        val (value, time): (String, String) = params.get
         ClusterRefs.actorSystem ! BulkHtmModelEvent(id, HtmModelEventData(id, value, time))
         JsonResponse(
           ("status" -> 200) ~ ("msg" -> s"ok")

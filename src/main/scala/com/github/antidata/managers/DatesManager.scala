@@ -9,4 +9,8 @@ object DatesManager {
   def toDateTime(stringDate: String): DateTime = {
     dateTimeFormat.parseDateTime(stringDate)
   }
+  def toDateTime(millis: Long): String = {
+    dateTimeFormat.print(new DateTime(millis))
+  }
+  def parseLong(s: String) = try { Some(s.toLong) } catch { case _: Throwable => None }
 }

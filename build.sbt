@@ -8,7 +8,7 @@ val project = Project(
   base = file("."),
   settings = Project.defaultSettings ++ SbtMultiJvm.multiJvmSettings ++ Seq(
     name := "htm-model-cluster",
-    version := "0.1.27",
+    version := "0.2.5",
     scalaVersion := "2.11.7",
     scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.6", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint"),
     javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6", "-Xlint:unchecked", "-Xlint:deprecation"),
@@ -20,7 +20,7 @@ val project = Project(
       "com.typesafe.akka"      %% "akka-persistence"    % akkaVersion,
       "org.mongodb" %% "casbah" % "2.8.1",
       "com.github.scullxbones" %% "akka-persistence-mongo-casbah" % "1.0.4",
-      "org.numenta" % "htm.java" % "0.6.3-SNAPSHOT",
+      "org.numenta" % "htm.java" % "0.6.5-eSNAPSHOT",
       "org.scalatest" %% "scalatest" % "2.2.4" % "test",
       "org.fusesource" % "sigar" % "1.6.4",
       "com.twitter" %% "util-collection" % "6.25.0"),
@@ -29,8 +29,8 @@ val project = Project(
       "-Xms128m", "-Xmx1024m"),
     initialCommands in console :=
       """
-        import com.github.antidata.bootstrap._
-        Boot.main(Array())
+        //import com.github.antidata.bootstrap._
+        //Boot.main(Array())
       """,
     Keys.fork in run := true,  
     mainClass in (Compile, run) := Some("com.github.antidata.bootstrap.Boot"),
