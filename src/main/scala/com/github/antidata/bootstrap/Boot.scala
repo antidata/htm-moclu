@@ -11,7 +11,7 @@ object Boot {
   def startup(ports: Seq[String]) = {
     ports foreach { port =>
       // Override the configuration of the port
-      val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port).withFallback(ConfigFactory.load())
+      val config = ConfigFactory.parseString(s"akka.remote.netty.tcp.port=$port").withFallback(ConfigFactory.load())
 
       // Create an Akka system
       val system = ActorSystem("HtmModelsSystem", config)
@@ -30,8 +30,8 @@ object Boot {
   }
 
   def main(args: Array[String]): Unit = {
-    HtmModelsManager.init()
     startup(Seq("2551"/*, "2552", "0"*/))
+    HtmModelsManager()
   }
 
   def startupWeb(ports: Seq[String]) = {
