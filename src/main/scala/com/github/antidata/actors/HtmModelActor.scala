@@ -1,9 +1,11 @@
 package com.github.antidata.actors
 
 import akka.actor.{ActorRef, Actor, ActorLogging, Props}
+import akka.pattern.ask
 import akka.cluster.sharding.ShardRegion
 import akka.persistence.{RecoveryCompleted, PersistentActor}
-import com.github.antidata.managers.{HtmGeoModelFactory, DatesManager, HtmModelFactory, HtmModelsManager}
+import com.github.antidata.managers.HtmModelsManager.HtmModelsManagerEvent
+import com.github.antidata.managers._
 import com.github.antidata.model._
 import org.numenta.nupic.network.Inference
 import rx.Subscriber
@@ -55,6 +57,8 @@ class HtmModelActor extends PersistentActor with ActorLogging {
   import HtmModelActor._
   import com.github.antidata.actors.HtmModelActor._
 
+  implicit val timeout = akka.util.Timeout(60L, java.util.concurrent.TimeUnit.SECONDS)
+
   override def persistenceId: String = self.path.parent.name + "-" + self.path.name
 
   private var state = HtmModelState("", "", "")
@@ -66,37 +70,44 @@ class HtmModelActor extends PersistentActor with ActorLogging {
     def event(value: String, timestamp: String) = copy(value = value, timestamp = timestamp)
   }
 
+  private def applyModel(id: String)(apply: Option[HtmModel] => Unit) = {
+    apply(HtmModelsManager.actorInstance.getModel(HtmModelId(id)))
+//    (HtmModelsManager() ? HtmModelsManager.GetModel(HtmModelId(id))).mapTo[HtmModelsManagerEvent] onSuccess {
+//      case HtmModelsManager.ModelResponse(modelOption) => apply(modelOption)
+//      case _ => println(s"No retorno modl ")
+//    }
+  }
+
   def updateState(sender: Option[ActorRef]): DomainEvent => Unit = {
     case HtmModelCreated(id) =>
       state = state.created(id)
       // TODO refactor code below
       val htmModel = HtmGeoModelFactory()
-      HtmModelsManager.addModel(HtmModel(id, Nil, htmModel)) match {
-        case None =>
-          log.debug(s"$id added from $from")
-        case Some(_) =>
-          log.debug(s"$id exists from $from")
-      }
+      HtmModelsManager() ! HtmModelsManager.AddModel(HtmModel(id, Nil, htmModel))
 
     case e@HtmModeledEvent(v, t) =>
       state = state.event(v, t)
       val filterDef = filterModelData(state.id, v, t) _
-      HtmModelsManager.getModel(HtmModelId(state.id)) match {
+
+      applyModel(state.id) {
         case Some(htmModel) if !htmModel.data.exists(filterDef) =>
           log.info(s"Sending to publisher: $t, $v")
           val millisOpt = DatesManager.parseLong(t)
           millisOpt.foreach { millis =>
             htmModel.network.net.observe().subscribe(new Subscriber[Inference]() {
               var applied = false
+
               def onNext(i: Inference) {
-                if(applied) return
+                if (applied) return // These observables fails at some point if we don't check for applied
                 applied = true
-                HtmModelsManager.updateModel(
-                  htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, millis * 1000L, Some(i.getAnomalyScore)))))
+                HtmModelsManager() ! HtmModelsManager.UpdateModel(htmModel.copy(data = List(HtmModelData(htmModel.HtmModelId, v, millis * 1000L, Some(i.getAnomalyScore)))))
+
                 sender.foreach(_ ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, "0"))
                 //capturedSender ! ModelPrediction(htmModel.HtmModelId, i.getAnomalyScore, i.getClassification("location").getMostProbableValue(1))
               }
+
               override def onError(throwable: Throwable): Unit = log.error(throwable.getMessage)
+
               override def onCompleted(): Unit = {}
             })
             htmModel.network.publisher.onNext(s"${DatesManager.toDateTime(millis * 1000L)}, $v")
@@ -107,7 +118,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       }
 
     case e@HtmModelResetted(id) =>
-      HtmModelsManager.resetNetwork(id)
+      HtmModelsManager() ! HtmModelsManager.ResetNetwork(id)
 
   }
 
@@ -125,7 +136,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
       sender() ! CreateModelOk(id)
 
     case HtmEventGetModel(hmi) =>
-      HtmModelsManager.getModel(HtmModelId(hmi)) match {
+      applyModel(hmi) {
         case Some(htmModel) =>
           log.debug(s"data ${htmModel.data} from $from")
           sender() ! GetModelData(hmi, htmModel.data)
@@ -137,23 +148,12 @@ class HtmModelActor extends PersistentActor with ActorLogging {
     case e@HtmModelEvent(id, hmed) =>
       log.info(s"Received HtmModelEvent($id, $hmed)")
       val capturedSender = sender()
-      HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
-        case Some(htmModel) =>
-          log.debug(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
-          persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState(Some(capturedSender)))
-
-        case _ =>
-          // If the model is not yet in the manager then wait delaying the event
-          val dEvent = DelayedHtmModelEvent(id, e, 1)
-          context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(30L, scala.concurrent.duration.SECONDS), self, dEvent)
-          log.debug(s"${hmed.HtmModelId} not found from $from delayed event")
-          capturedSender ! ModelNotFound(hmed.HtmModelId)
-      }
+      persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState(Some(capturedSender)))
 
     case e@BulkHtmModelEvent(id, hmed) =>
       log.info(s"Received BulkHtmModelEvent($id, $hmed)")
       val capturedSender = sender()
-      HtmModelsManager.getModel(HtmModelId(hmed.HtmModelId)) match {
+      applyModel(hmed.HtmModelId) {
         case Some(htmModel) =>
           log.debug(s"Sending to publisher: ${hmed.timestamp},${hmed.value} from $from")
           persist(HtmModeledEvent(hmed.value, hmed.timestamp))(updateState(None))
@@ -168,7 +168,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
     case d@DelayedHtmModelEvent(id, e, c) =>
       log.debug(s"Received DelayedHtmModelEvent($id, ${e.htmModelEventData})")
-      HtmModelsManager.getModel(HtmModelId(id)) match {
+      applyModel(id) {
         case Some(htmModel) =>
           persist(HtmModeledEvent(e.htmModelEventData.value, e.htmModelEventData.timestamp))(updateState(None))
 
