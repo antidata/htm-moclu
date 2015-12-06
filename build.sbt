@@ -8,7 +8,7 @@ val project = Project(
   base = file("."),
   settings = Project.defaultSettings ++ SbtMultiJvm.multiJvmSettings ++ Seq(
     name := "htm-model-cluster",
-    version := "0.2.5",
+    version := "0.3.0",
     scalaVersion := "2.11.7",
     scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.6", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint"),
     javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6", "-Xlint:unchecked", "-Xlint:deprecation"),
@@ -29,8 +29,11 @@ val project = Project(
       "-Xms128m", "-Xmx1024m"),
     initialCommands in console :=
       """
-        //import com.github.antidata.bootstrap._
-        //Boot.main(Array())
+        import com.github.antidata.bootstrap._
+        Boot.main(Array())
+        import com.github.antidata.actors.HtmModelActor._
+        import com.github.antidata.actors._
+        val ac = Boot.systemRef.actorOf(akka.actor.Props[HtmMasterActor], "masterAct")
       """,
     Keys.fork in run := true,  
     mainClass in (Compile, run) := Some("com.github.antidata.bootstrap.Boot"),
