@@ -1,14 +1,49 @@
 package com.github.antidata.managers
 
+import akka.actor._
 import com.github.antidata.actors.HtmModelActor.{HtmModelData, HtmModel}
 import com.github.antidata.model.HtmModelId
-import com.twitter.util.LruMap
 
-object HtmModelsManager extends HtmModelsManager
+object HtmModelsManager {
+  trait  HtmModelsManagerEvent
+  case class GetModel(htmModelId: HtmModelId) extends HtmModelsManagerEvent
+  case class ModelResponse(modelOption: Option[HtmModel]) extends HtmModelsManagerEvent
+  case class AddModel(htmModel: HtmModel) extends HtmModelsManagerEvent
+  case class AddModelId(id: String) extends HtmModelsManagerEvent
+  case class UpdateModel(htmModel: HtmModel) extends HtmModelsManagerEvent
+  case class ResetNetwork(htmModel: String) extends HtmModelsManagerEvent
+  case class EditNetworkLearning(htmModel: String, learning: Boolean) extends HtmModelsManagerEvent
 
-trait HtmModelsManager {
+  private[this] lazy val system = ActorSystem("HtmModelsSystem")
+  lazy val actorInstance = new HtmModelsManagerActor
+  private[this] lazy val managerActor: ActorRef = system.actorOf(Props(actorInstance), "HtmModelsManagerActor")
+
+  def apply(): ActorRef = managerActor
+}
+
+class HtmModelsManagerActor extends Actor with ActorLogging {
+  import HtmModelsManager._
   protected[this] lazy val cache: scala.collection.mutable.Map[HtmModelId, HtmModel] = scala.collection.mutable.Map[HtmModelId, HtmModel]()
-  //protected[this] lazy val cache: LruMap[HtmModelId, HtmModel] = new LruMap[HtmModelId, HtmModel](AppConfiguration.values.getInt("app.cache.size"))
+  cache // Constructor init
+  def receive = {
+    case e@GetModel(htmModelId) =>
+      sender() ! ModelResponse(getModel(htmModelId))
+
+    case e@AddModel(htmModel) =>
+      addModel(htmModel)
+
+    case e@AddModelId(id) =>
+      addModel(id)
+
+    case e@UpdateModel(htmModel) =>
+      updateModel(htmModel)
+
+    case e@ResetNetwork(id) =>
+      resetNetwork(id)
+
+    case e@EditNetworkLearning(id, learning) =>
+      editNetworkLearning(id, learning)
+  }
 
   def getModel(htmModelId: HtmModelId): Option[HtmModel] = cache.get(htmModelId)
   def addModel(htmModel: HtmModel): Option[String] = {
@@ -37,9 +72,7 @@ trait HtmModelsManager {
       cache.update(HtmModelId(htmModel.HtmModelId), htmModel.copy(data = updatedList))
     }
   }
-  def init() {
-    cache
-  }
+
   def size = cache.size
 
   def resetNetwork(htmModelId: String): Unit = {
