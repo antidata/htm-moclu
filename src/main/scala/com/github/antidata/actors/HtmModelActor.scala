@@ -46,6 +46,7 @@ object HtmModelActor {
   case class HtmModelData(HtmModelId: String, value: String, timestamp: Long, anomalyScore: Option[Double]) extends ClusterEvent
   case class DelayedHtmModelEvent(HtmModelId: String, event: HtmModelEvent, count: Int) extends ClusterEvent
   case class ResetNetwork(HtmModelId: String) extends ClusterEvent
+  case class CommandError(HtmModelId: String, msg: String) extends ClusterEvent
 
   def filterModelData(id: String, value: String, time: String)(htmModelData: HtmModelData): Boolean = {
     id == htmModelData.HtmModelId &&
@@ -65,7 +66,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
   private var state = HtmModelState("", "", "")
 
-  private var delayedLastTime = (0L -> 0)
+  private var lastNewModel = 0L
 
   val from = Cluster(context.system).selfAddress.hostPort
 
@@ -79,9 +80,13 @@ class HtmModelActor extends PersistentActor with ActorLogging {
   }
 
   def updateState(sender: Option[ActorRef]): DomainEvent => Unit = {
+    case HtmModelCreated(id) if (new Date).getTime - lastNewModel <= 5000 => //TODO move new Date to util and 5000 parameter
+      sender.foreach(_ ! CommandError(id, "Model recently created, try again in few secs or add more servers"))
+
     case HtmModelCreated(id) =>
       state = state.created(id)
-      HtmModelsManager() ! HtmModelsManager.AddModelId(id)
+      lastNewModel = (new Date).getTime
+      HtmModelsManager.actorInstance.addModel(id) // This is a blocking call because we need to get the model instance before continuing handling other messages
 
     case e@HtmModeledEvent(v, t) =>
       state = state.event(v, t)
@@ -112,20 +117,7 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           }
 
         case _ =>
-          log.info(s"HtmModelsManager should contain model ${state.id}, delaying $v, $t...")
-          // If the model is not yet in the manager then wait delaying the event
-          val multiDelay = {
-            val now = (new Date).getTime
-            if(now - delayedLastTime._1 <= 20L) {
-              delayedLastTime = now -> (delayedLastTime._2 + 1)
-              delayedLastTime._2 + 1
-            } else {
-              delayedLastTime = now -> 0
-              1
-            }
-          }
-          val dEvent = HtmDelayedModeledEvent(v, t)
-          context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(10L * multiDelay, scala.concurrent.duration.SECONDS), self, dEvent)
+          log.error(s"HtmModelsManager should contain model ${state.id}")
       }
 
     case e@HtmModelResetted(id) =>
