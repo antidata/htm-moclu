@@ -1,5 +1,7 @@
 package com.github.antidata.actors
 
+import java.util.Date
+
 import akka.actor.{ActorRef, Actor, ActorLogging, Props}
 import akka.pattern.ask
 import akka.cluster.sharding.ShardRegion
@@ -63,6 +65,8 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
   private var state = HtmModelState("", "", "")
 
+  private var delayedLastTime = (0L -> 0)
+
   val from = Cluster(context.system).selfAddress.hostPort
 
   case class HtmModelState(id: String, value: String, timestamp: String) {
@@ -72,18 +76,12 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
   private def applyModel(id: String)(apply: Option[HtmModel] => Unit) = {
     apply(HtmModelsManager.actorInstance.getModel(HtmModelId(id)))
-//    (HtmModelsManager() ? HtmModelsManager.GetModel(HtmModelId(id))).mapTo[HtmModelsManagerEvent] onSuccess {
-//      case HtmModelsManager.ModelResponse(modelOption) => apply(modelOption)
-//      case _ => println(s"No retorno modl ")
-//    }
   }
 
   def updateState(sender: Option[ActorRef]): DomainEvent => Unit = {
     case HtmModelCreated(id) =>
       state = state.created(id)
-      // TODO refactor code below
-      val htmModel = HtmGeoModelFactory()
-      HtmModelsManager() ! HtmModelsManager.AddModel(HtmModel(id, Nil, htmModel))
+      HtmModelsManager() ! HtmModelsManager.AddModelId(id)
 
     case e@HtmModeledEvent(v, t) =>
       state = state.event(v, t)
@@ -114,7 +112,20 @@ class HtmModelActor extends PersistentActor with ActorLogging {
           }
 
         case _ =>
-          log.info(s"HtmModelsManager should contain model ${state.id}")
+          log.info(s"HtmModelsManager should contain model ${state.id}, delaying $v, $t...")
+          // If the model is not yet in the manager then wait delaying the event
+          val multiDelay = {
+            val now = (new Date).getTime
+            if(now - delayedLastTime._1 <= 20L) {
+              delayedLastTime = now -> (delayedLastTime._2 + 1)
+              delayedLastTime._2 + 1
+            } else {
+              delayedLastTime = now -> 0
+              1
+            }
+          }
+          val dEvent = HtmDelayedModeledEvent(v, t)
+          context.system.scheduler.scheduleOnce(scala.concurrent.duration.FiniteDuration(10L * multiDelay, scala.concurrent.duration.SECONDS), self, dEvent)
       }
 
     case e@HtmModelResetted(id) =>
@@ -180,6 +191,9 @@ class HtmModelActor extends PersistentActor with ActorLogging {
 
     case r@ResetNetwork(id) =>
       persist(HtmModelResetted(id))(updateState(None))
+
+    case e@HtmDelayedModeledEvent(v, t) =>
+      updateState(None)(HtmModeledEvent(v, t))
   }
 
   implicit def bulk2Event(bulk: BulkHtmModelEvent): HtmModelEvent = HtmModelEvent(bulk.HtmModelId, bulk.htmModelEventData)
