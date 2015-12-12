@@ -23,8 +23,8 @@ object HtmModelsManager {
 
 class HtmModelsManagerActor extends Actor with ActorLogging {
   import HtmModelsManager._
-  protected[this] lazy val cache: scala.collection.mutable.Map[HtmModelId, HtmModel] = scala.collection.mutable.Map[HtmModelId, HtmModel]()
-  cache // Constructor init
+  protected[this] val cache: scala.collection.mutable.Map[HtmModelId, HtmModel] = scala.collection.mutable.Map[HtmModelId, HtmModel]()
+
   def receive = {
     case e@GetModel(htmModelId) =>
       sender() ! ModelResponse(getModel(htmModelId))
@@ -59,9 +59,9 @@ class HtmModelsManagerActor extends Actor with ActorLogging {
   def addModel(id: String) {
     cache.get(HtmModelId(id)) match {
       case None =>
-        val htmModel = HtmModelFactory()
+        val htmModel = HtmGeoModelFactory()
         cache += (HtmModelId(id) -> HtmModel(id, Nil, htmModel))
-        None
+
       case _ =>
         // Already in cache
     }
